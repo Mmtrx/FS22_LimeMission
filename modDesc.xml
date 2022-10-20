@@ -41,7 +41,7 @@ Les contrats de chauler des champs
 			<en>for liming</en>
 			<de>zum Kalken</de>
 			<fr>pour chauler</fr>
-			<ru>для известкования</ru>
+			<ru>за известкование</ru>
 		</text>
 		<text name="fieldJob_desc_lime">
 			<en>Spread lime on field %d to adjust the pH for a better yield.</en>
