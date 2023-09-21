@@ -5,30 +5,23 @@
 -- Author:      Mmtrx
 -- Changelog:
 --  v1.0.0.0    10.10.2022  initial 
---  v1.0.0.1    15.10.2022  adjust mission vehicles, update missionTypeIdToType 
+--  v1.0.0.1    20.10.2022  adjust mission vehicles, update missionTypeIdToType 
+--  v1.1.0.0    20.09.2023  fix growth stop after accepting a lime contract (#161) 
+--							remove offered lime contracts when crop grwos beyond seed stage (growth 1)
 --=======================================================================================================
-AddLime = {
-	filename = g_currentModDirectory .. "missionVehicles/limeMissions.xml",
-	debug = "false"
+LimeMission = {
+	REWARD_PER_HA = 500,
+	REIMBURSEMENT_PER_HA = 2020, 
+	-- price for 1000 sec: 	Fert: .006 l/s * 1920 = 11520
+	-- 						Lime: .090 l/s *  225 = 20250
+	debug = false,
 }
-function AddLime:loadMapFinished()
-	g_missionManager:loadMissionVehicles(AddLime.filename)
-end
-BaseMission.loadMapFinished = Utils.appendedFunction(BaseMission.loadMapFinished, AddLime.loadMapFinished)
-addConsoleCommand("lmFieldGenerateMission", "Force generating a new mission for given field", "consoleGenerateFieldMission", g_missionManager)
-
 function debugPrint(text, ...)
-	if AddLime.debug == "true" then
+	if LimeMission.debug == true then
 		Logging.info(text,...)
 	end
 end
 -----------------------------------------------------------------------------------------------
-LimeMission = {
-	REWARD_PER_HA = 500,
-	REIMBURSEMENT_PER_HA = 2020 
-	-- price for 1000 sec: 	Fert: .006 l/s * 1920 = 11520
-	-- 						Lime: .090 l/s *  225 = 20250
-}
 local LimeMission_mt = Class(LimeMission, AbstractFieldMission)
 InitObjectClass(LimeMission, "LimeMission")
 
@@ -45,46 +38,60 @@ function LimeMission.new(isServer, isClient, customMt)
 	self.completionFilter = DensityMapFilter.new(self.completionModifier)
 	local groundTypeMapId, groundTypeFirstChannel, groundTypeNumChannels = self.mission.fieldGroundSystem:getDensityMapData(FieldDensityMap.GROUND_TYPE)
 	self.completionMaskFilter = DensityMapFilter.new(groundTypeMapId, groundTypeFirstChannel, groundTypeNumChannels)
-
 	self.completionMaskFilter:setValueCompareParams(DensityValueCompareType.GREATER, 0)
-
 	return self
 end
 
 function LimeMission:completeField()
 	for i = 1, table.getn(self.field.maxFieldStatusPartitions) do
-	-- 					field, fieldPartitions, fieldPartitionIndex, 
 		g_fieldManager:setFieldPartitionStatus(self.field, self.field.maxFieldStatusPartitions, i, 
-	--		fruitIndex, fieldState, growthState, 
-			self.field.fruitType, self.fieldState, self.growthState, 
-	--		sprayState, 
-			nil, 
-	--		setSpray, plowState, weedState, limeState)		
-			true, self.fieldPlowFactor, self.weedState, self.limeLevelMaxValue)
+	--		fruitIndex, 			fieldState, 	growthState, 	 sprayState, 
+			self.field.fruitType, self.fieldState, self.growthState, nil, 
+	--		setSpray, plowState, 			weedState, 			limeState)		
+			true, 	self.fieldPlowFactor, self.weedState, self.limeLevelMaxValue)
 	end
 end
 
+function getMaxGrowthState(field, fruitType)
+	local fruitDesc = g_fruitTypeManager:getFruitTypeByIndex(fruitType)
+	if fruitDesc == nil then return nil end
+	local maxGrowthState = 0
+	local maxArea = 0
+	local x, z = FieldUtil.getMeasurementPositionOfField(field)
+
+	for i = 0, fruitDesc.cutState do
+		local area, _ = FieldUtil.getFruitArea(x - 1, z - 1, x + 1, z - 1, x - 1, z + 1, FieldUtil.FILTER_EMPTY, FieldUtil.FILTER_EMPTY, fruitType, i, i, 0, 0, 0, false)
+		if maxArea < area then
+			maxGrowthState = i
+			maxArea = area
+		end
+	end
+	return maxGrowthState
+end
+
 function LimeMission.canRunOnField(field, sprayFactor, fieldSpraySet, fieldPlowFactor, limeFactor, maxWeedState, stubbleFactor, rollerFactor)
-	debugPrint("field %d, sprayFactor %s, fieldSpraySet %s, fieldPlowFactor %s, limeFactor %s, maxWeedState %d, stubbleFactor %s, rollerFactor %s",
-		field.fieldId, sprayFactor, fieldSpraySet, fieldPlowFactor, limeFactor, maxWeedState, stubbleFactor, rollerFactor)
 	if not g_currentMission.missionInfo.limeRequired or limeFactor > 0 then 
 		-- no lime required, or already limed
 		return false 
 	end
-
+	-- we can run on an empty field (no fruit defined)
 	local fruitType = field.fruitType
 	local fruitDesc = g_fruitTypeManager:getFruitTypeByIndex(fruitType)
 	if fruitDesc == nil then 
-		return field.plannedFruit ~= nil, FieldManager.FIELDSTATE_PLOWED 
+		return field.plannedFruit ~= nil, FieldManager.FIELDSTATE_CULTIVATED, maxWeedState
 	end
 
-	local maxGrowthState = FieldUtil.getMaxGrowthState(field, fruitType)
+	-- we cann run on a seeded field (growth 1), or a stubble field (growth = cutState)
+	local maxGrowthState = getMaxGrowthState(field, fruitType)
+	debugPrint("f%d, growth %d, sprayF %s, spraySet %s, plowF %s, limeF %s, maxWeed %d, stubbleF %s, rollerF %s",
+		field.fieldId, maxGrowthState, sprayFactor, fieldSpraySet, fieldPlowFactor, limeFactor, maxWeedState, stubbleFactor, rollerFactor)
 	if maxGrowthState < 2 then
-		return true, FieldManager.FIELDSTATE_GROWING, maxGrowthState
+		debugPrint("* can run")
+		return true, FieldManager.FIELDSTATE_GROWING, maxGrowthState, maxWeedState
 	elseif maxGrowthState == fruitDesc.cutState then
-		return true, FieldManager.FIELDSTATE_HARVESTED, maxGrowthState
+		debugPrint("* can run (stubble)")
+		return true, FieldManager.FIELDSTATE_HARVESTED, maxGrowthState, maxWeedState
 	end
-
 	return false
 end
 
@@ -99,8 +106,8 @@ function LimeMission:getData()
 end
 
 function LimeMission:getIsAvailable()
-	local environment = g_currentMission.environment
-	if environment ~= nil and environment.currentSeason == Environment.SEASON.WINTER then
+	-- can lime in winter, if no snow
+	if g_currentMission.snowSystem.height >= SnowSystem.MIN_LAYER_HEIGHT then
 		return false
 	end
 	return LimeMission:superClass().getIsAvailable(self)
@@ -108,7 +115,6 @@ end
 
 function LimeMission:partitionCompletion(x, z, widthX, widthZ, heightX, heightZ)
 	local _, area, totalArea = nil
-
 	self.completionModifier:setParallelogramWorldCoords(x, z, widthX, widthZ, heightX, heightZ, DensityCoordType.POINT_VECTOR_VECTOR)
 
 	local limeLevel = self.limeFactor * self.limeLevelMaxValue
@@ -118,51 +124,10 @@ function LimeMission:partitionCompletion(x, z, widthX, widthZ, heightX, heightZ)
 	return area, totalArea
 end
 
-function LimeMission:start(...)
-	if not LimeMission:superClass().start(self, ...) then
-		return false
-	end
-	if self.growthState and self.growthState ~= 1 then 
-		self:setSown(self.field)
-	end
-	return true
-end
-
 function LimeMission:validate(event)
 	return event ~= FieldManager.FIELDEVENT_GROWN 
 	and event ~= FieldManager.FIELDEVENT_LIMED
-end
-
-function LimeMission:setSown(field)
-	if field == nil or field.fieldDimensions == nil or field.farmland == nil or field.fruitType == nil then
-		return false
-	end
-	local fruitType = g_fruitTypeManager:getFruitTypeByIndex(field.fruitType)
-	local growthState = 1
-
-	if fruitType == nil then
-		return false 
-	end
-	
-	local defaultModifier, preparingModifier = g_fieldManager:getFruitModifier(fruitType)
-	if defaultModifier == nil then
-		return false 
-	end
-
-	local numAreasSet = 0
-	for i = 1, getNumOfChildren(field.fieldDimensions) do
-		local dimWidth = getChildAt(field.fieldDimensions, i - 1)
-		local dimStart = getChildAt(dimWidth, 0)
-		local dimHeight = getChildAt(dimWidth, 1)
-		local startX, _, startZ = getWorldTranslation(dimStart)
-		local widthX, _, widthZ = getWorldTranslation(dimWidth)
-		local heightX, _, heightZ = getWorldTranslation(dimHeight)
-
-		defaultModifier:setParallelogramWorldCoords(startX, startZ, widthX, widthZ, heightX, heightZ, DensityCoordType.POINT_POINT_POINT)
-		defaultModifier:executeSet(growthState)
-		numAreasSet = i
-	end
-	return numAreasSet > 0
+	and (event ~= FieldManager.FIELDEVENT_GROWING or self.growthState == 1)
 end
 
 function adjustMissionTypes(index)
@@ -181,5 +146,7 @@ function adjustMissionTypes(index)
 end
 
 g_missionManager:registerMissionType(LimeMission, "lime")
+
 -- move lime mission type before plow, cultivate: at index 2
 adjustMissionTypes(2)
+addConsoleCommand("lmGenerateFieldMission", "Force generating a new mission for given field", "consoleGenerateFieldMission", g_missionManager)
