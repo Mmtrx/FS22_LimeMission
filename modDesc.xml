@@ -7,6 +7,7 @@
 		<de>Kalk-Aufträge</de>
 		<fr>Contrats de Chauler</fr>
 		<cz>Zakázky na vápnění</cz>
+		<ru>Контракты На Известкование</ru>
 	</title>
 	<description>
 		<en>
@@ -56,18 +57,21 @@ Uzavírá smlouvy na vápnění
 			<de>Kalken</de>
 			<fr>Chauler</fr>
 			<cz>Vápnění</cz>
+			<ru>Известкование</ru>
 		</text>
 		<text name="fieldJob_desc_action_lime">
 			<en>for liming</en>
 			<de>zum Kalken</de>
 			<fr>pour chauler</fr>
 			<cz>Pro vápnění</cz>
+			<ru>За известкование</ru>
 		</text>
 		<text name="fieldJob_desc_lime">
 			<en>Spread lime on field %d to adjust the pH for a better yield.</en>
 			<de>Kalke das Feld %d, um den pH-Wert zu verbessern und dadurch den Ertrag zu steigern.</de>
 			<fr>Chauler le champ %d pour améliorer le pH et ainsi augmenter le rendement.</fr>
 			<cz>Vápnění na poli %d k úpravě pH pro lepší výnos.</cz>
+			<ru>Разбросайте известь на поле %d, чтобы отрегулировать уровень pH для повышения урожайности.</ru>
 		</text>
 	</l10n>
 </modDesc>
