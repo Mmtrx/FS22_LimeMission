@@ -8,6 +8,7 @@
 		<fr>Contrats de Chauler</fr>
 		<cz>Zakázky na vápnění</cz>
 		<ru>Контракты На Известкование</ru>
+    <pl>Kontrakty na wapnowanie</pl>
 	</title>
 	<description>
 		<en>
@@ -42,6 +43,15 @@ Changelog v1.1.0.0
 Uzavírá smlouvy na vápnění
 ]]>
 		</cz>
+    <pl>
+			<![CDATA[
+Wprowadza umowy na wapnowanie pól
+
+Changelog v1.1.0.0
+- naprawia zatrzymanie wzrostu po przyjęciu umowy na wapnowanie (#161)
+- usuwa oferowane umowy na wapnowanie, gdy rośliny rosną poza fazę kiełkowania (faza wzrostu 1)
+]]>
+		</pl>
 	</description>
 	<iconFilename>icon.dds</iconFilename>
 	<multiplayer supported="true" />
@@ -58,6 +68,7 @@ Uzavírá smlouvy na vápnění
 			<fr>Chauler</fr>
 			<cz>Vápnění</cz>
 			<ru>Известкование</ru>
+      <pl>Wapnowanie</pl>
 		</text>
 		<text name="fieldJob_desc_action_lime">
 			<en>for liming</en>
@@ -65,6 +76,7 @@ Uzavírá smlouvy na vápnění
 			<fr>pour chauler</fr>
 			<cz>Pro vápnění</cz>
 			<ru>За известкование</ru>
+      <pl>na wapnowanie</pl>
 		</text>
 		<text name="fieldJob_desc_lime">
 			<en>Spread lime on field %d to adjust the pH for a better yield.</en>
@@ -72,6 +84,7 @@ Uzavírá smlouvy na vápnění
 			<fr>Chauler le champ %d pour améliorer le pH et ainsi augmenter le rendement.</fr>
 			<cz>Vápnění na poli %d k úpravě pH pro lepší výnos.</cz>
 			<ru>Разбросайте известь на поле %d, чтобы отрегулировать уровень pH для повышения урожайности.</ru>
+      <pl>Rozsyp wapno na polu %d, aby dostosować pH i uzyskać lepsze plony.</pl>
 		</text>
 	</l10n>
 </modDesc>
